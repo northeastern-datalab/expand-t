@@ -6,9 +6,9 @@ np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 pd.options.mode.chained_assignment = None
 
 class CandidateTables:
-    def __init__(self, benchmark, sim_threshold, rawLakeDfs, allLakeTableCols, starmie_candidates):
+    def __init__(self, benchmark, rawLakeDfs, allLakeTableCols, starmie_candidates):
         self.benchmark = benchmark
-        self.sim_threshold = sim_threshold
+        self.sim_threshold = 0.2
         self.rawLakeDfs = rawLakeDfs
         self.lakeDfs = {}
         self.allLakeTableCols = allLakeTableCols

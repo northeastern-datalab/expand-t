@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import time
 import integration_utils as utils
+from IPython.display import display
 sys.path.append('../')
 from evaluatePaths import bestMatchingTuples, valueSimilarity
 np.warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)    
@@ -347,12 +348,6 @@ class TableIntegration:
             return timed_out, noCandidates, numOutputVals
         self.reproducedSourceTable = self.reproducedSourceTable[commonCols]
         
-        print("-----x---------x--------x---")
-        print(f"Source Table has {self.source_df.shape[0]} rows, {self.source_df.shape[1]} columns")
-        print(f"Resulting Table has {self.reproducedSourceTable.shape[0]} rows, {self.reproducedSourceTable.shape[1]} columns")
-        print(f"{len(commonCols)} overlapping columns: {commonCols}")
-        print("-----x---------x--------x---")
-        
         self.source_df = self.source_df.replace(self.replaceNull, np.nan) 
         self.reproducedSourceTable = self.reproducedSourceTable.replace(self.replaceNull, np.nan)  
         self.reproducedSourceTable = self.reproducedSourceTable.dropna(axis=0, subset=[self.primary_key])
@@ -360,6 +355,13 @@ class TableIntegration:
             noCandidates = True
             return timed_out, noCandidates, numOutputVals
         self.reproducedSourceTable = self.complementationSubsumption(self.reproducedSourceTable)
+        
+        print("-----x---------x--------x---")
+        print(f"Source Table has {self.source_df.shape[0]} rows, {self.source_df.shape[1]} columns")
+        display(self.source_df)
+        print("-----x---------x--------x---")
+        print(f"Reclaimed Source Table has {self.reproducedSourceTable.shape[0]} rows, {self.reproducedSourceTable.shape[1]} columns")
+        
         return timed_out, noCandidates, numOutputVals
 
     def expand_FDAlgorithm(self):
@@ -460,10 +462,10 @@ class TableIntegration:
         fd_table = pd.DataFrame(subsumptionResults, columns =schema)
         return fd_table
     
-    def expand_tables(self, direction='all', size=None):
+    def expand_tables(self, direction='all', N=None):
         '''
         direction (str): 'horizontal' (suggest new columns), 'vertical' (suggest new tuples), 'all'
-        size (int): number of new columns / tuples
+        N (int): number of new columns / tuples
         '''
         # when the schema is the same, inner union = outer union
         self.raw_tableDfs, _ = utils.innerUnion(self.raw_tableDfs, self.primary_key, self.foreign_keys)
@@ -479,7 +481,6 @@ class TableIntegration:
         self.source_df = self.source_df.replace(self.replaceNull, np.nan) 
         result_FD = result_FD.replace(self.replaceNull, np.nan)
         result_FD = self.order_rows_cols(result_FD)
-        print(f"Integrating raw Originating tables produces Table of shape {result_FD.shape}, with {numOutputVals} values")
         
         # Get new columns and tuples
         # Purpose: rank columns, rank tuples so we choose what to show to user (append to reproduced source table)
@@ -489,7 +490,7 @@ class TableIntegration:
         
         extra_tuples_df = self.getNewTuples(result_FD)
         # Default: sort extra tuples by first numeric column
-        extra_tuples_df = self.rank_tuples(extra_tuples_df)
+        extra_tuples_df = self.sort_tuples(extra_tuples_df)
         if not extra_tuples_df.empty: print(f"Integrated Table has {extra_tuples_df.shape[0]} new tuples")
         
         extra_colVals_df = self.getValsinNewCols(result_FD) # shape: n_rows = n_rows in source, n_cols = n_cols in source + new cols
@@ -503,21 +504,21 @@ class TableIntegration:
         if direction == 'horizontal':
             reproduced_tuples = extra_colVals_df[[col for col in extra_colVals_df if col in self.source_df]]
             extra_tuples_df = extra_tuples_df[self.reproducedSourceTable.columns]
-            if size: extra_tuples_df = extra_tuples_df.head(min(extra_tuples_df.shape[0],size))
+            if N: extra_tuples_df = extra_tuples_df.head(min(extra_tuples_df.shape[0],N))
             expanded_hor_df = pd.concat([reproduced_tuples,extra_tuples_df], ignore_index=True)
             self.expandedSourceTable = expanded_hor_df
         elif direction == 'vertical' or direction == 'all':
             expanded_ver_df = extra_colVals_df
-            if size:
-                new_cols = list(extra_cols_df.columns)[:min(extra_cols_df.shape[1],size)]
+            if N:
+                new_cols = list(extra_cols_df.columns)[:min(extra_cols_df.shape[1],N)]
                 all_cols = [col for col in extra_colVals_df if col in self.source_df] + new_cols
                 expanded_ver_df = extra_colVals_df[all_cols]
             self.expandedSourceTable = expanded_ver_df
             
         if direction == 'all':
-            # get new tuples with reproduced columns and 'size' number of new columns
+            # get new tuples with reproduced columns and 'N' number of new columns
             extra_tuples_df = extra_tuples_df[expanded_ver_df.columns]
-            if size: extra_tuples_df = extra_tuples_df.head(min(extra_tuples_df.shape[0],size))
+            if N: extra_tuples_df = extra_tuples_df.head(min(extra_tuples_df.shape[0],N))
             # expanded_ver_df: reproduced source table tuples, with new columns
             self.expandedSourceTable = pd.concat([expanded_ver_df,extra_tuples_df], ignore_index=True)
             
@@ -540,13 +541,13 @@ class TableIntegration:
         sorted_df = df[sorted_columns]
         return sorted_df
     
-    def rank_tuples(self, df, rankCol=None):
+    def sort_tuples(self, df, sortCol=None):
         '''
-        rankCol (str): name of int/float column to rank (equivalent to "ORDER BY") - ASC for now. Default: order by first numeric column
+        sortCol (str): name of int/float column to rank (equivalent to "ORDER BY") - ASC for now. Default: order by first numeric column
         '''
         sorted_df = df
         sort_column = None
-        if not rankCol:
+        if not sortCol:
             try:
                 first_numeric_column = None
                 # Iterate over the columns of the DataFrame
@@ -558,7 +559,7 @@ class TableIntegration:
                 # Sort the DataFrame by the first numeric column
                 if first_numeric_column: sort_column = first_numeric_column
             except: pass
-        else: sort_column = rankCol
+        else: sort_column = sortCol
         sorted_df = df.sort_values(by=sort_column)
         return sorted_df
     
@@ -575,14 +576,6 @@ class TableIntegration:
     # Displaying Tabular Results in Jupyter Notebook
     # =============================================================================
     def highlight_overlap_values(self, df):
-        ''' for sample in paper '''
-        sample_integ_df = df.loc[df[self.primary_key].isin(['Pulp Fiction', 'Citizen Kane', 'Star Wars'])]
-        try: 
-            sample_expand_df = df.loc[df[self.primary_key].isin(['Night of the Living Dead', 'Kill Bill: Vol. 2', 'The Piano'])]
-            combined_df = pd.concat([sample_integ_df,sample_expand_df]).drop('Rank', axis=1)
-            df = combined_df[[col for col in self.expandedSourceTable.columns if col in combined_df.columns]]
-        except: df = sample_integ_df
-        ''' END: sample in paper '''
         df.reset_index(drop=True, inplace=True)
         # truncate floats when printing
         truncate_floats = utils.truncate_float_vals(self.source_df, df)

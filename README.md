@@ -1,6 +1,8 @@
 This repository contains code for `Expand-T: Demonstrating Table Reclamation and Expansion`.
 
-At submission time, we have a Jupyter Notebook (`sample_demo.ipynb`) that runs Expand-T end-to-end. Upon acceptance, we will create a web application for users to thoroughly explore Expand-T. 
+Currently, we have a Jupyter Notebook (`sample_demo.ipynb`) that runs Expand-T end-to-end. Upon acceptance, we will create a web application for users to thoroughly explore Expand-T. 
+
+We also have a demonstration video in which we step through the Jupyter Notebook and discuss Expand-T's functionalities: https://tinyurl.com/expand-t-demo
 
 Expand-T consists of three steps: Table Reclamation, Table Expansion, and Table Exploration. For Table Reclamation, we adopt code from [Gen-T: Table Reclamation in Data Lakes](https://arxiv.org/abs/2403.14128), which is publicly available [here](https://github.com/northeastern-datalab/gen-t). 
 
